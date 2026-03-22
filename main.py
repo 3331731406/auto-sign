@@ -72,6 +72,7 @@ class SignClient:
         logging.info("开始登录")
 
         img_base64 = self.get_captcha(nonce)
+        import base64
         img_bytes = base64.b64decode(img_base64[22:])
         img_bytes = rm_transparent(img_bytes)
 
@@ -83,15 +84,19 @@ class SignClient:
 
         login_url = BASE_URL + f"/wp-admin/admin-ajax.php?_nonce={nonce}&action=0ac2206cd584f32fba03df08b4123264&type=login"
 
+        #  关键：multipart/form-data
         data = {
-            "username": USERNAME,
-            "password": PASSWORD,
-            "captcha": captcha
+            "email": (None, USERNAME),
+            "pwd": (None, PASSWORD),
+            "captcha": (None, captcha),
+            "type": (None, "login")
         }
 
-        r = self.session.post(login_url, data=data, headers=self.headers)
+        r = self.session.post(login_url, files=data, headers=self.headers)
 
-        if "success" in r.text.lower():
+        print("登录返回:", r.text)
+
+        if "success" in r.text.lower() or "登录成功" in r.text:
             logging.info("登录成功")
             self.save_cookie()
             return True
