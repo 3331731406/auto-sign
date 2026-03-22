@@ -8,7 +8,7 @@
 - `utils.py`: 验证码图片预处理
 - `requirements.txt`: Python 依赖
 - `Dockerfile`: Docker 构建文件
-- `deploy.sh`: Linux 服务器更新和重启脚本
+- `deploy.sh`: Linux 服务器更新镜像并安装定时任务的脚本
 - `.env.example`: 环境变量模板
 
 ## Environment
@@ -114,12 +114,18 @@ chmod +x deploy.sh
 ./deploy.sh
 ```
 
+脚本会执行：
+
+- `git pull --ff-only`
+- `docker build`
+- 安装一条每天 `08:30` 执行的 `crontab`
+
 等价于默认使用：
 
 - `APP_DIR=/opt/auto-sign/app`
 - `DATA_DIR=/opt/auto-sign/data`
-- `CONTAINER_NAME=auto-sign`
 - `IMAGE_NAME=auto-sign:latest`
+- `CRON_SCHEDULE=30 8 * * *`
 
 也可以自定义：
 
@@ -135,19 +141,24 @@ APP_DIR=/srv/auto-sign/app DATA_DIR=/srv/auto-sign/data ./deploy.sh
 
 ## Update
 
-服务器更新直接执行：
+服务器更新后重新安装定时任务：
 
 ```bash
 cd /opt/auto-sign/app
 ./deploy.sh
 ```
 
-脚本会自动执行：
+查看当前定时任务：
 
-1. `git pull --ff-only`
-2. `docker build`
-3. 删除旧容器
-4. 启动新容器
+```bash
+crontab -l
+```
+
+查看执行日志：
+
+```bash
+tail -f /opt/auto-sign/data/cron.log
+```
 
 ## Git
 
