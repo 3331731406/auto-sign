@@ -1,37 +1,23 @@
-from PIL import Image
 from io import BytesIO
-import pytesseract
+
+from PIL import Image
+
 
 def rm_transparent(img_bytes: bytes) -> bytes:
     image = Image.open(BytesIO(img_bytes))
-    bg = Image.new("RGB", image.size, (255, 255, 255))
-    img = Image.composite(image, bg, image)
+    background = Image.new("RGB", image.size, (255, 255, 255))
+    merged = Image.composite(image, background, image)
 
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
+    buffer = BytesIO()
+    merged.save(buffer, format="PNG")
+    return buffer.getvalue()
 
 
-def ocr_image(img_bytes):
-    from PIL import Image
-    from io import BytesIO
-    import pytesseract
+def normalize_captcha(img_bytes: bytes) -> bytes:
+    image = Image.open(BytesIO(img_bytes)).convert("RGB")
+    width, height = image.size
+    resized = image.resize((width * 2, height * 2))
 
-    image = Image.open(BytesIO(img_bytes))
-
-    # 1️⃣ 灰度
-    image = image.convert("L")
-
-    # 2️⃣ 二值化（数字验证码推荐更强一点）
-    image = image.point(lambda x: 0 if x < 150 else 255)
-
-    # 3️⃣ OCR（限制只识别数字）
-    text = pytesseract.image_to_string(
-        image,
-        config="--psm 6 -c tessedit_char_whitelist=0123456789"
-    )
-
-    # 4️⃣ 清洗结果（非常关键）
-    text = "".join(filter(str.isdigit, text))
-
-    return text
+    buffer = BytesIO()
+    resized.save(buffer, format="PNG")
+    return buffer.getvalue()

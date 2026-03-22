@@ -1,9 +1,10 @@
 FROM python:3.10-slim
 
-# 安装 OCR + 时区
+# Install runtime libs required by ddddocr/onnxruntime and timezone data.
 RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    tzdata
+    libgomp1 \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Asia/Shanghai
 
