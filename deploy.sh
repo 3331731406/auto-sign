@@ -19,46 +19,64 @@ if [[ $# -ge 3 ]]; then
 fi
 
 if ! command -v git >/dev/null 2>&1; then
-  echo "git is required but was not found in PATH." >&2
+  echo "未在 PATH 中找到 git，请先安装或检查环境变量。" >&2
   exit 1
 fi
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "docker is required but was not found in PATH." >&2
+  echo "未在 PATH 中找到 docker，请先安装或检查环境变量。" >&2
   exit 1
 fi
 
 if ! command -v crontab >/dev/null 2>&1; then
-  echo "crontab is required but was not found in PATH." >&2
+  echo "未在 PATH 中找到 crontab，请先安装或检查环境变量。" >&2
   exit 1
 fi
 
 APP_DIR="$(cd "${APP_DIR}" && pwd)"
 DATA_DIR="$(mkdir -p "${DATA_DIR}" && cd "${DATA_DIR}" && pwd)"
 ENV_FILE="${DATA_DIR}/.env"
+ENV_TEMPLATE="${APP_DIR}/.env.example"
 CRON_LOG_FILE="${CRON_LOG_FILE:-${DATA_DIR}/cron.log}"
 DOCKER_BIN="$(command -v docker)"
 RUN_CMD="cd \"${APP_DIR}\" && \"${DOCKER_BIN}\" run --rm --env-file \"${ENV_FILE}\" -v \"${DATA_DIR}:/data\" \"${IMAGE_NAME}\" >> \"${CRON_LOG_FILE}\" 2>&1"
 CRON_LINE="${CRON_SCHEDULE} ${RUN_CMD}"
 
-echo "[1/4] Checking required paths"
+echo "[1/5] 检查必要路径"
 if [[ ! -d "${APP_DIR}" ]]; then
-  echo "Application directory does not exist: ${APP_DIR}" >&2
+  echo "应用目录不存在: ${APP_DIR}" >&2
   exit 1
 fi
 
 if [[ ! -f "${ENV_FILE}" ]]; then
-  echo "Environment file does not exist: ${ENV_FILE}" >&2
+  echo "环境变量文件不存在: ${ENV_FILE}" >&2
   exit 1
 fi
 
-echo "[2/4] Updating repository"
+echo "[2/5] 更新仓库"
 git -C "${APP_DIR}" pull --ff-only
 
-echo "[3/4] Building image"
+echo "[3/5] 检查环境变量"
+if [[ -f "${ENV_TEMPLATE}" ]]; then
+  missing_keys=()
+  while IFS= read -r key; do
+    [[ -z "${key}" ]] && continue
+    if ! grep -Eq "^${key}=" "${ENV_FILE}"; then
+      missing_keys+=("${key}")
+    fi
+  done < <(grep -E '^[A-Z0-9_]+=' "${ENV_TEMPLATE}" | cut -d '=' -f 1)
+
+  if [[ ${#missing_keys[@]} -gt 0 ]]; then
+    echo "警告: ${ENV_FILE} 缺少 .env.example 中的以下配置项:" >&2
+    printf '  - %s\n' "${missing_keys[@]}" >&2
+    echo "请在下一次定时任务执行前检查并补全 ${ENV_FILE}。" >&2
+  fi
+fi
+
+echo "[4/5] 构建镜像"
 "${DOCKER_BIN}" build -t "${IMAGE_NAME}" "${APP_DIR}"
 
-echo "[4/4] Installing crontab entry"
+echo "[5/5] 安装 crontab 任务"
 TMP_CRON="$(mktemp)"
 trap 'rm -f "${TMP_CRON}"' EXIT
 
@@ -68,7 +86,7 @@ fi
 echo "${CRON_LINE}" >> "${TMP_CRON}"
 crontab "${TMP_CRON}"
 
-echo "Crontab installation complete."
+echo "定时任务安装完成。"
 echo "APP_DIR=${APP_DIR}"
 echo "DATA_DIR=${DATA_DIR}"
 echo "IMAGE_NAME=${IMAGE_NAME}"

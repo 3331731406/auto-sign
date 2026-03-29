@@ -116,6 +116,7 @@ bash deploy.sh
 脚本会执行这些操作：
 
 - `git pull --ff-only`
+- 对比 `.env.example` 和运行中的 `.env`，提示缺失的配置项
 - `docker build`
 - 安装一条每天 `08:30` 执行的 `crontab`
 
